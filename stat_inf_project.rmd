@@ -1,0 +1,138 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(tidyverse)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `gss`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+### Sample :
+
+The General Social Survey (GSS) is a sociological survey used to collect information and keep a historical record of the concerns, experiences, attitudes, and practices of residents of the United States.
+
+GSS questions cover a diverse range of issues including national spending priorities, marijuana use, crime and punishment, race relations, quality of life, confidence in institutions, and sexual behavior.
+
+The dataset used for this project is an extract of the General Social Survey (GSS) Cumulative File 1972-2012. It consists of 57061 observations with 114 variables. Each variable corresponds to a specific question asked to the respondent.
+
+### Methodology :
+
+The GSS survey is conducted face-to-face with an in-person interview by NORC at the University of Chicago. The target population is adults (18+) living in households in the United States. Respondents are random sampled from a mix of urban, suburban, and rural geographic areas. Participation in the study is strictly voluntary.
+
+### Scope of Analysis :
+
+We cannot make any causal inference on this study , Although it's not an observational study , random sampling was involved but random assignment of treatment is not since the participation was voluntary and the scope of the study is not about asking a specific question, we can assure that the samples are independent of each other due to random sampling also.  
+
+* * *
+
+## Part 2: Research question
+
+#### Do white people owns gun more than black people ? 
+
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+Let's first check number of people who own any kind of gun in their house holds. 
+
+The variables we're interested in is `owngun` and `tvhours`
+
+```{r}
+#let's see the response of own gun 
+
+unique(gss$owngun)
+
+```
+As we can see that our variable has NAs and Refused which is should be treated as NA , so let's filter out those with response either Yes or No , since we intersted in this only. 
+```{r}
+filtered <- gss %>% filter(owngun== "Yes" | owngun == "No" , na.rm=TRUE)
+dim(filtered)
+```
+We can see that we are shortened to only 34144 out of 57061 observations that explicitly responded either they own a gun or not. 
+
+So let's check their proportions
+
+```{r}
+filtered %>% ggplot(aes(x=owngun,y= ..prop..,group=1)) + geom_bar() + scale_y_continuous(labels = scales::percent)
+```
+We can see above that barely 40% of people who responded with either yes or no owns a gun 
+
+* * *
+Now let's check the distribution of Race in our data set. 
+
+```{r}
+gss %>% ggplot(aes(x=race,y=..prop..,group=1)) + geom_bar(na.rm = TRUE) +
+  scale_y_continuous(labels = scales::percent)
+```
+
+We can see from above that around 80% of people is white and slightly 17% are black and the rest is other races. 
+
+Now we should make our dataset ready for inference. 
+
+```{r}
+
+clean_gss <- gss %>% filter(owngun %in% c("Yes","No") , race %in% c("White","Black")) %>% select(race,owngun) %>% mutate(gun=ifelse( owngun == "Yes",1,0),race=droplevels(race) ) %>% select(race,gun)
+```
+
+
+* * * 
+
+## Part 4: Inference
+Conditions for t-test : 
+
+1) Independence : according to random sampling the observations are independent from each other. 
+
+2) Number of observations satisfies the requirements for the CLT to hold. 
+
+
+Hypothesis 
+
+
+<li> $H_0: \mu_{white} = \mu_{black}$ </li> 
+<li> $H_A: \mu_{white} \ne \mu_{black}$ </li>
+
+
+```{r}
+inference(y = gun, x = race, data = clean_gss, statistic = "mean", type = "ht", null = 0, alternative = "twosided", method = "theoretical")
+```
+
+
+As we can see , with p-value < 0.0001 , we can reject the Null hypothesis stating that that on average the number of black people owning guns is as much as the number of white people owning guns, we can now make a confidence interval for the difference in means between the two groups. 
+
+```{r}
+inference(y = gun, x = race, data = clean_gss, statistic = "mean", type = "ci", conf_level = 0.95 , method = "theoretical")
+```
+
+We can conclude from above , that we're 95% that on average , the proportion of white people that own guns is more than those of black people by in between (0.1746 , 0.202). 
+
+
+Thank you !
